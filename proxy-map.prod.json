@@ -1,0 +1,8 @@
+{
+  "1111": { "target": "https://app.mirabelsmarketingmanager.com/fpv2/fps/jsresource.ashx" },
+  "2222": { "target": "https://app.mirabelsmarketingmanager.com/fpv2/fps/callIframev5.js" },
+  "3333": { "target": "https://www.mirabelanalytics.com/mmwap/linktrk.php" },
+  "4444": { "target": "https://app1.mirabelanalytics.com/lnktrk.php" },
+  "5555": { "target": "http://app1.mirabelanalytics.com/lnktrk.php" },
+  "6666": { "target": "https://d3o95m4hf22wfr.cloudfront.net/Asyncload.js" }
+}

@@ -1,0 +1,39 @@
+# Node.js dependencies
+node_modules/
+
+# Environment files
+.env
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Dependency directories
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Docker
+*.pid
+docker-compose*.yml
+
+# VS Code settings
+.vscode/
+
+# Build and production files
+dist/
+build/
+
+# Other files or folders to ignore
+*.tgz
