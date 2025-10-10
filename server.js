@@ -33,7 +33,12 @@ const memoryCache = new Map();
 function createFlexibleProxy() {
   return async (req, res, next) => {
     try {
-      const firstSegment = req.url.split("/")[1];
+      let firstSegment = req.url.split("/")[1];
+      const questionMarkIndex = firstSegment.indexOf("?");
+      if(questionMarkIndex !== -1){
+        firstSegment = firstSegment.substring(0, questionMarkIndex);
+      }
+
       const config = proxyMap[firstSegment];
 
       if (config?.target) {
