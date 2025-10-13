@@ -21,7 +21,9 @@ const redisClient = new Redis.Cluster(
   {
     dnsLookup: (address, callback) => callback(null, address),
     redisOptions: {
-      tls: {},
+      tls: {
+        rejectUnauthorized: false
+      },
     },
   });
 
