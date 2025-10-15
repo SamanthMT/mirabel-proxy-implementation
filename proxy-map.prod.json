@@ -5,5 +5,7 @@
   "4444": { "target": "https://app1.mirabelanalytics.com/lnktrk.php" },
   "5555": { "target": "http://app1.mirabelanalytics.com/lnktrk.php" },
   "6666": { "target": "https://d3o95m4hf22wfr.cloudfront.net/Asyncload.js" },
+  "7777" : { "target": "https://www.mirabelanalytics.com/mmwap/linktrk.js" },
+  "8888" : { "target": "https://app1.mirabelanalytics.com/lnktrk.js" },
   "api": { "target": "https://emailservice.magazinemanager.com" }
 }
