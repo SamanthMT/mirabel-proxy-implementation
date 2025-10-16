@@ -45,48 +45,40 @@ const memoryCache = new Map();
 function createFlexibleProxy() {
   return async (req, res, next) => {
     try {
-      let firstSegment = req.url.split("/")[1];
-      const questionMarkIndex = firstSegment.indexOf("?");
-      if(questionMarkIndex !== -1){
-        firstSegment = firstSegment.substring(0, questionMarkIndex);
-      }
-
+      
+      const [_, rawSegment = ""] = req.url.split("/");
+      const firstSegment = rawSegment.split("?")[0];
       const config = proxyMap[firstSegment];
+      const host = req.hostname;
 
       if (config?.target) {
-        if (firstSegment === "1111") {
-          const url = new URL(req.url, `https://${req.headers.host}`);
-        
-          url.searchParams.set("cnamedomain", req.headers.host);
-        
-          req.url = `/${firstSegment}${url.search}`;
-        
-          return createProxyMiddleware({
-            target: config.target,
-            changeOrigin: true,
-            pathRewrite: { [`^/${firstSegment}`]: "" }, 
-          })(req, res, next);
-        }
-
-        return createProxyMiddleware({
+        const proxyOptions = {
           target: config.target,
           changeOrigin: true,
           pathRewrite: { [`^/${firstSegment}`]: "" },
-        })(req, res, next);
+        };
+
+        if (firstSegment === "1111") {
+          const url = new URL(req.url, `https://${host}`);
+          url.searchParams.set("cnamedomain", host);
+          req.url = `/${firstSegment}${url.search}`;
+        }
+
+        
+        if (firstSegment === "3333") {
+          const url = new URL(req.url, `https://${host}`);
+          url.searchParams.set("isnew", "1");
+          req.url = `/${firstSegment}${url.search}`;
+        }
+
+        return createProxyMiddleware(proxyOptions)(req, res, next);
       }
 
-      const host = req.hostname;
-      
-     
       let redisTarget = memoryCache.get(host);
-      
-     
+
       if (!redisTarget) {
         redisTarget = await redisClient.get(host);
-        
-        if (redisTarget) {
-          memoryCache.set(host, redisTarget);
-        }
+        if (redisTarget) memoryCache.set(host, redisTarget);
       }
 
       if (redisTarget) {
