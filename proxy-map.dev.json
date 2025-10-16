@@ -1,11 +1,11 @@
 {
   "1111": { "target": "https://t1mrktapp2.magazinemanager.com/fp/fps/JsResourse.ashx" },
   "2222": { "target": "https://t1mrktapp2.magazinemanager.com/fp/fps/callIframev5.js" },
-  "3333": { "target": "https://www.mirabelanalytics.com/stgwap/linktrk.php" },
+  "3333": { "target": "https://www.mirabelanalytics.com/stgwap/lnktrk.php" },
   "4444": { "target": "https://app1.mirabelanalytics.com/lnktrk.php" },
   "5555": { "target": "NA" },
   "6666": { "target": "https://d7s2gzyubkqwh.cloudfront.net/Asyncload.js" },
-  "7777" : { "target": "https://www.mirabelanalytics.com/stgwap/linktrk.js" },
+  "7777" : { "target": "https://www.mirabelanalytics.com/stgwap/lnktrk.js" },
   "8888" : { "target": "NA" },
   "api": { "target": "https://t1emailservice.magazinemanager.com" }
 }
