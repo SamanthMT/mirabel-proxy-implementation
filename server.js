@@ -42,6 +42,36 @@ redisClient.on("error", (err) => console.error("❌ Redis error:", err));
 
 const memoryCache = new Map();
 
+function forwardRequestBody(proxyReq, req) {
+  if (!req.body || !["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+    return;
+  }
+
+  const contentType = req.headers["content-type"];
+
+  if (typeof req.body === "object" && !(req.body instanceof Buffer)) {
+    let bodyData;
+
+    if (contentType?.includes("application/json")) {
+      bodyData = JSON.stringify(req.body);
+    } else if (contentType?.includes("application/x-www-form-urlencoded")) {
+      bodyData = new URLSearchParams(req.body).toString();
+    } else {
+      bodyData = JSON.stringify(req.body);
+    }
+
+    proxyReq.setHeader("Content-Length", Buffer.byteLength(bodyData));
+    proxyReq.write(bodyData);
+  } else if (req.body instanceof Buffer) {
+    proxyReq.setHeader("Content-Length", req.body.length);
+    proxyReq.write(req.body);
+  } else if (typeof req.body === "string") {
+    proxyReq.setHeader("Content-Length", Buffer.byteLength(req.body));
+    proxyReq.write(req.body);
+  }
+}
+
+
 function createFlexibleProxy() {
   return async (req, res, next) => {
     try {
@@ -56,6 +86,15 @@ function createFlexibleProxy() {
           target: config.target,
           changeOrigin: true,
           pathRewrite: { [`^/${firstSegment}`]: "" },
+          on: {
+            proxyReq: (proxyReq, req, res) => {
+              try {
+                forwardRequestBody(proxyReq, req);
+              } catch (err) {
+                console.error("Error forwarding body:", err);
+              }
+            },
+          },
         };
 
         if (firstSegment === "1111") {
