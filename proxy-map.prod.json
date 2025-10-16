@@ -7,5 +7,5 @@
   "6666": { "target": "https://d3o95m4hf22wfr.cloudfront.net/Asyncload.js" },
   "7777" : { "target": "https://www.mirabelanalytics.com/mmwap/lnktrk.js" },
   "8888" : { "target": "https://app1.mirabelanalytics.com/lnktrk.js" },
-  "api": { "target": "https://emailservice.magazinemanager.com" }
+  "api": { "target": "https://emailservice.magazinemanager.com/api" }
 }
