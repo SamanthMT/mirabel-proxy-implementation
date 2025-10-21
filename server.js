@@ -107,7 +107,8 @@ function createFlexibleProxy() {
         if (firstSegment === "3333") {
           const url = new URL(req.url, `https://${host}`);
           url.searchParams.set("isnew", "1");
-          req.url = `${req.url}${url.search}`;
+          const isEqual = req.url.split("?")[0] === `/${firstSegment}`;
+          req.url = `${isEqual ? `/${firstSegment}` : req.url}${url.search}`;
         }
 
         return createProxyMiddleware(proxyOptions)(req, res, next);
