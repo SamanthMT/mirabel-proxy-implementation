@@ -28,7 +28,7 @@ const proxyMap = JSON.parse(fs.readFileSync(proxyMapFile, "utf-8"));
 // For local development, use Redis standalone ----> new Redis(process.env.REDIS_HOST, process.env.REDIS_PORT)
 // For production, use Redis Cluster ----> new Redis.Cluster([])
 
-const redisClient = new Redis.Cluster(
+const redisClient = new Redis(
   [{ host: process.env.REDIS_HOST, port: Number(process.env.REDIS_PORT) }],
   {
     dnsLookup: (address, callback) => callback(null, address),
@@ -101,7 +101,7 @@ function createFlexibleProxy() {
         if (firstSegment === "1111") {
           const url = new URL(req.url, `https://${host}`);
           url.searchParams.set("cnamedomain", host);
-          req.url = `/${req.url}${url.search}`;
+          req.url = `${req.url}${url.search}`;
         }
 
         
