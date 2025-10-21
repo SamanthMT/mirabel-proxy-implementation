@@ -6,7 +6,7 @@ import Redis from "ioredis";
 
 dotenv.config();
 const app = express();
-app.use(express.json());
+// app.use(express.json());
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*'); 
@@ -69,6 +69,7 @@ function forwardRequestBody(proxyReq, req) {
     proxyReq.setHeader("Content-Length", Buffer.byteLength(req.body));
     proxyReq.write(req.body);
   }
+  proxyReq.end();
 }
 
 
@@ -92,7 +93,7 @@ function createFlexibleProxy() {
                 forwardRequestBody(proxyReq, req);
               } catch (err) {
                 console.error("Error forwarding body:", err);
-              }
+            }
             },
           },
         };
@@ -100,14 +101,14 @@ function createFlexibleProxy() {
         if (firstSegment === "1111") {
           const url = new URL(req.url, `https://${host}`);
           url.searchParams.set("cnamedomain", host);
-          req.url = `/${firstSegment}${url.search}`;
+          req.url = `/${req.url}${url.search}`;
         }
 
         
         if (firstSegment === "3333") {
           const url = new URL(req.url, `https://${host}`);
           url.searchParams.set("isnew", "1");
-          req.url = `/${firstSegment}${url.search}`;
+          req.url = `${req.url}${url.search}`;
         }
 
         return createProxyMiddleware(proxyOptions)(req, res, next);
@@ -144,7 +145,7 @@ app.get("/health", (req, res) => {
     .json({ status: "healthy", timestamp: new Date().toISOString() });
 });
 
-app.post("/save", async (req, res) => {
+app.post("/save", express.json(), async (req, res) => {
   try {
     const clientSecret = req.headers["secret_key"];
     if (!clientSecret || clientSecret !== process.env.SECRET_KEY) {
