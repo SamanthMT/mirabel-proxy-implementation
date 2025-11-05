@@ -2,7 +2,8 @@ import express from "express";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import dotenv from "dotenv";
 import fs from "fs";
-import Redis from "ioredis";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient, GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
 
 dotenv.config();
 const app = express();
@@ -25,20 +26,24 @@ const isProd = process.env.NODE_ENV === "production";
 const proxyMapFile = isProd ? "./proxy-map.prod.json" : "./proxy-map.dev.json";
 const proxyMap = JSON.parse(fs.readFileSync(proxyMapFile, "utf-8"));
 
-// For local development, use Redis standalone ----> new Redis(process.env.REDIS_HOST, process.env.REDIS_PORT)
-// For production, use Redis Cluster ----> new Redis.Cluster([])
+// Initialize DynamoDB client
+const dynamoDBClient = new DynamoDBClient({
+  region: process.env.AWS_REGION || "us-east-1",
+  // AWS credentials will be automatically picked up from:
+  // - Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+  // - IAM role (when running on ECS/EC2)
+  // - ~/.aws/credentials (for local development)
+});
 
-const redisClient = new Redis.Cluster(
-  [{ host: process.env.REDIS_HOST, port: Number(process.env.REDIS_PORT) }],
-  {
-    dnsLookup: (address, callback) => callback(null, address),
-    redisOptions: {
-      tls: {},
-    },
-  });
+const docClient = DynamoDBDocumentClient.from(dynamoDBClient);
+const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME;
 
-redisClient.on("connect", () => console.log("✅ Connected to Redis"));
-redisClient.on("error", (err) => console.error("❌ Redis error:", err));   
+if (!TABLE_NAME) {
+  console.error("❌ DYNAMODB_TABLE_NAME environment variable is required");
+  process.exit(1);
+}
+
+console.log("✅ DynamoDB client initialized");
 
 const memoryCache = new Map();
 
@@ -114,16 +119,29 @@ function createFlexibleProxy() {
         return createProxyMiddleware(proxyOptions)(req, res, next);
       }
 
-      let redisTarget = memoryCache.get(host);
+      let dynamoTarget = memoryCache.get(host);
 
-      if (!redisTarget) {
-        redisTarget = await redisClient.get(host);
-        if (redisTarget) memoryCache.set(host, redisTarget);
+      if (!dynamoTarget) {
+        try {
+          const result = await docClient.send(
+            new GetCommand({
+              TableName: TABLE_NAME,
+              Key: { subdomain: host },
+            })
+          );
+          
+          if (result.Item?.domainName) {
+            dynamoTarget = result.Item.domainName;
+            memoryCache.set(host, dynamoTarget);
+          }
+        } catch (err) {
+          console.error("Error fetching from DynamoDB:", err);
+        }
       }
 
-      if (redisTarget) {
+      if (dynamoTarget) {
         return createProxyMiddleware({
-          target: `https://${redisTarget}`,
+          target: `https://${dynamoTarget}`,
           changeOrigin: true,
           pathRewrite: (path) => path,
         })(req, res, next);
@@ -167,43 +185,77 @@ app.post("/save", express.json(), async (req, res) => {
     }
 
     
-    const existingMapping = await redisClient.get(subdomain);
-    if (existingMapping) {
+    try {
+      const existingMapping = await docClient.send(
+        new GetCommand({
+          TableName: TABLE_NAME,
+          Key: { subdomain: subdomain },
+        })
+      );
       
-      memoryCache.set(subdomain, existingMapping);
-      console.log(`Found existing mapping in Redis: ${subdomain} -> ${existingMapping}`);
-      return res.status(200).json({ 
-        message: "Mapping already exists in Redis", 
-        cached: true 
-      });
+      if (existingMapping.Item?.domainName) {
+        memoryCache.set(subdomain, existingMapping.Item.domainName);
+        console.log(`Found existing mapping in DynamoDB: ${subdomain} -> ${existingMapping.Item.domainName}`);
+        return res.status(200).json({ 
+          message: "Mapping already exists in DynamoDB", 
+          cached: true 
+        });
+      }
+    } catch (err) {
+      console.error("Error checking DynamoDB:", err);
     }
 
     
-    await redisClient.set(subdomain, domainName);
+    await docClient.send(
+      new PutCommand({
+        TableName: TABLE_NAME,
+        Item: {
+          subdomain: subdomain,
+          domainName: domainName,
+          updatedAt: new Date().toISOString(),
+        },
+      })
+    );
+    
     memoryCache.set(subdomain, domainName);
     console.log(`Saved new mapping: ${subdomain} -> ${domainName}`);
 
     res.status(200).json({ message: "Mapping saved successfully" });
   } catch (err) {
-    console.error("Error saving to Redis:", err);
-    let msg = "";
-    redisClient.ping().then((pong) => {
-      msg = pong;
-    }).catch((err) => {
-      msg = err;
+    console.error("Error saving to DynamoDB:", err);
+    res.status(500).json({ 
+      error: "Failed to save mapping", 
+      details: err.message 
     });
-
-    res.status(500).json({ error: "Failed to save mapping", msg });
   }
 });
 
-app.get("/redis-test", async (req, res) => {
+app.get("/dynamodb-test", async (req, res) => {
   try {
-    const pong = await redisClient.ping();
-    res.json({ status: "ok", redis: pong });
+    // Test DynamoDB connection by attempting to describe the table
+    const { DynamoDBClient: TestClient } = await import("@aws-sdk/client-dynamodb");
+    const { DescribeTableCommand } = await import("@aws-sdk/client-dynamodb");
+    
+    const testClient = new TestClient({
+      region: process.env.AWS_REGION || "us-east-1",
+    });
+    
+    const result = await testClient.send(
+      new DescribeTableCommand({ TableName: TABLE_NAME })
+    );
+    
+    res.json({ 
+      status: "ok", 
+      dynamodb: "connected",
+      tableName: TABLE_NAME,
+      tableStatus: result.Table?.TableStatus 
+    });
   } catch (err) {
-    console.error("Redis test error:", err);
-    res.status(500).json({ error: "Redis test failed", details: err.message });
+    console.error("DynamoDB test error:", err);
+    res.status(500).json({ 
+      error: "DynamoDB test failed", 
+      details: err.message 
+    });
   }
 });
 
