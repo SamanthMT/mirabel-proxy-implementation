@@ -3,7 +3,7 @@ import { createProxyMiddleware } from "http-proxy-middleware";
 import dotenv from "dotenv";
 import fs from "fs";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, GetCommand, PutCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
 
 dotenv.config();
 const app = express();
@@ -47,6 +47,48 @@ console.log("✅ DynamoDB client initialized");
 
 const memoryCache = new Map();
 
+async function preloadCacheFromDynamoDB() {
+  if (memoryCache.size > 0) {
+    console.log("Memory cache already has data, skipping preload.");
+    return;
+  }
+
+  console.log("Loading DynamoDB data into memory cache...");
+
+  try {
+    let lastEvaluatedKey = null;
+    let totalItems = 0;
+
+    do {
+      const scanParams = {
+        TableName: TABLE_NAME,
+        ProjectionExpression: "subdomain, domainName",
+      };
+      
+      if (lastEvaluatedKey) {
+        scanParams.ExclusiveStartKey = lastEvaluatedKey;
+      }
+      
+      const result = await docClient.send(new ScanCommand(scanParams));
+
+      if (result.Items) {
+        for (const item of result.Items) {
+          if (item.subdomain && item.domainName) {
+            memoryCache.set(item.subdomain, item.domainName);
+          }
+        }
+        totalItems += result.Items.length;
+      }
+
+      lastEvaluatedKey = result.LastEvaluatedKey;
+    } while (lastEvaluatedKey);
+
+    console.log(`✅ Preloaded ${totalItems} mappings into memory cache.`);
+  } catch (err) {
+    console.error("❌ Failed to preload DynamoDB cache:", err);
+  }
+}
+
 function forwardRequestBody(proxyReq, req) {
   if (!req.body || !["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
     return;
@@ -76,7 +118,6 @@ function forwardRequestBody(proxyReq, req) {
   }
   proxyReq.end();
 }
-
 
 function createFlexibleProxy() {
   return async (req, res, next) => {
@@ -262,8 +303,13 @@ app.get("/dynamodb-test", async (req, res) => {
 app.use("/", createFlexibleProxy());
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(
-    `Proxy server running at http://localhost:${PORT}, ENV=${isProd ? "PROD" : "DEV"}`
-  );
-});
+
+(async () => {
+  await preloadCacheFromDynamoDB();
+  app.listen(PORT, () => {
+    console.log(
+      `Proxy server running at http://localhost:${PORT}, ENV=${isProd ? "PROD" : "DEV"}`
+    );
+  });
+})();
+
