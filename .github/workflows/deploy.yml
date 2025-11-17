@@ -4,20 +4,14 @@ on:
   push:
     branches:
       - development
-      - production
-
-env:
-  AWS_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-  ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
-  ECS_SERVICE: ${{ secrets.ECS_SERVICE }}
-  ECS_CLUSTER: ${{ secrets.ECS_CLUSTER }}
-  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      - main
 
 jobs:
   deploy:
-    name: Deploy to AWS ECS
     runs-on: ubuntu-latest
-    
+
+    environment: ${{ github.ref == 'refs/heads/main' && 'main' || 'development' }}
+
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -27,7 +21,7 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+        aws-region: ${{ secrets.AWS_REGION }}
 
     - name: Login to Amazon ECR
       id: login-ecr
@@ -37,8 +31,8 @@ jobs:
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         IMAGE_TAG: ${{ github.sha }}
+        ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
       run: |
-        # Build a docker container and push it to ECR
         docker build -t $ECR_REPOSITORY:$IMAGE_TAG .
         docker tag $ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         docker tag $ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
@@ -47,8 +41,12 @@ jobs:
 
     - name: Deploy to Amazon ECS
       env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        IMAGE_TAG: ${{ github.sha }}
+        ECS_SERVICE: ${{ secrets.ECS_SERVICE }}
+        ECS_CLUSTER: ${{ secrets.ECS_CLUSTER }}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
       run: |
-        # Force new deployment
-        aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --force-new-deployment --region $AWS_REGION
+        aws ecs update-service \
+          --cluster $ECS_CLUSTER \
+          --service $ECS_SERVICE \
+          --force-new-deployment \
+          --region $AWS_REGION

@@ -1,8 +1,13 @@
 {
-  "1111": { "target": "https://app.mirabelsmarketingmanager.com/fpv2/fps/jsresource.ashx" },
+  "1111": { "target": "https://app.mirabelsmarketingmanager.com/fpv2/fps/jsresourse.ashx" },
   "2222": { "target": "https://app.mirabelsmarketingmanager.com/fpv2/fps/callIframev5.js" },
-  "3333": { "target": "https://www.mirabelanalytics.com/mmwap/linktrk.php" },
-  "4444": { "target": "https://app1.mirabelanalytics.com/lnktrk.php" },
-  "5555": { "target": "http://app1.mirabelanalytics.com/lnktrk.php" },
-  "6666": { "target": "https://d3o95m4hf22wfr.cloudfront.net/Asyncload.js" }
+  "3333": { "target": "https://app.mirabelsmarketingmanager.com/fpv2/fpv5.aspx" },
+  "4444": { "target": "https://www.mirabelanalytics.com/mmwap/lnktrk.php" },
+  "5555": { "target": "https://app1.mirabelanalytics.com/lnktrk.php" },
+  "6666": { "target": "https://d3o95m4hf22wfr.cloudfront.net/Asyncload.js" },
+  "7777" : { "target": "https://www.mirabelanalytics.com/mmwap/lnktrk.js" },
+  "8888" : { "target": "https://app1.mirabelanalytics.com/lnktrk.js" },
+  "9999" : { "target": "https://app.mirabelsmarketingmanager.com/fpv2/clientjs/clntv5.js" },
+  "1010" : { "target": "https://d3o95m4hf22wfr.cloudfront.net/devicesiglib.min.js" },
+  "api": { "target": "https://emailservice.magazinemanager.com/api" }
 }
