@@ -9,6 +9,8 @@ dotenv.config();
 const app = express();
 // app.use(express.json());
 
+app.set("trust proxy", true);
+
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*'); 
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -119,6 +121,84 @@ function forwardRequestBody(proxyReq, req) {
   proxyReq.end();
 }
 
+function extractIPv4(ip) {
+  if (!ip) return null;
+
+  // Case: IPv6 with embedded IPv4 → "::ffff:192.168.1.10"
+  const ipv4match = ip.match(/\b\d{1,3}(?:\.\d{1,3}){3}\b/);
+  return ipv4match ? ipv4match[0] : null;
+}
+
+function getClientIp(req) {
+  let ip =
+    req.headers["x-forwarded-for"]?.split(",")[0].trim() ||
+    req.headers["cf-connecting-ip"] ||
+    req.headers["x-real-ip"] ||
+    req.socket?.remoteAddress;
+
+  // convert IPv6 → IPv4 if possible
+  const ipv4 = extractIPv4(ip);
+  return ipv4 || ip;
+}
+
+function setForwardedHeaders(proxyReq, req) {
+  const ip = getClientIp(req);
+
+  const existing = proxyReq.getHeader("X-Forwarded-For");
+  proxyReq.setHeader(
+    "X-Forwarded-For",
+    existing ? `${existing}, ${ip}` : ip
+  );
+}
+
+const ROOT_ASSET_REGEX =
+  /^\/(manifest\.json|sw\.js|service-worker\.js|favicon\.ico|asset-manifest\.json)$/i;
+
+app.use((req, res, next) => {
+  if (!ROOT_ASSET_REGEX.test(req.path)) {
+    return next();
+  }
+
+  const referer = req.headers.referer;
+  if (!referer) return next();
+
+  try {
+    const refUrl = new URL(referer);
+    const [, firstSegment] = refUrl.pathname.split("/");
+
+    if (firstSegment && proxyMap[firstSegment]?.target) {
+      req.url = `/${firstSegment}${req.path}`;
+    }
+  } catch (_) {}
+
+  next();
+});
+
+// Send all requests (from a proxied page) through the same proxy segment so every network call hits the proxy
+app.use((req, res, next) => {
+  const [_, rawSegment = ""] = req.url.split("/");
+  const firstSegment = rawSegment.split("?")[0];
+  const config = proxyMap[firstSegment];
+
+  if (config?.target) return next();
+
+  const referer = req.headers.referer;
+  if (!referer) return next();
+
+  try {
+    const refUrl = new URL(referer);
+    const [, refSegment] = refUrl.pathname.split("/");
+    if (!refSegment || !proxyMap[refSegment]?.target) return next();
+    if (refUrl.hostname !== req.hostname) return next();
+
+    const pathPart = req.path || "/";
+    const queryPart = req.url.includes("?") ? "?" + req.url.split("?").slice(1).join("?") : "";
+    req.url = `/${refSegment}${pathPart.startsWith("/") ? pathPart : "/" + pathPart}${queryPart}`;
+  } catch (_) {}
+
+  next();
+});
+
 function createFlexibleProxy() {
   return async (req, res, next) => {
     try {
@@ -136,10 +216,26 @@ function createFlexibleProxy() {
           on: {
             proxyReq: (proxyReq, req, res) => {
               try {
+                setForwardedHeaders(proxyReq, req);
                 forwardRequestBody(proxyReq, req);
               } catch (err) {
                 console.error("Error forwarding body:", err);
-            }
+              }
+            },
+            proxyRes: (proxyRes, req, res) => {
+              const status = proxyRes.statusCode;
+              if (status !== 301 && status !== 302 && status !== 307 && status !== 308) return;
+              const location = proxyRes.headers["location"];
+              if (!location) return;
+              try {
+                const targetOrigin = new URL(config.target).origin;
+                const locUrl = location.startsWith("/") ? new URL(location, config.target) : new URL(location);
+                if (locUrl.origin !== targetOrigin) return;
+                const pathAndSearch = (locUrl.pathname.replace(/^\//, "") || "") + (locUrl.search || "");
+                const protocol = req.get("x-forwarded-proto") || req.protocol;
+                const proxyBase = `${protocol}://${req.get("host")}`;
+                proxyRes.headers["location"] = pathAndSearch ? `${proxyBase}/${firstSegment}/${pathAndSearch}` : `${proxyBase}/${firstSegment}`;
+              } catch (_) {}
             },
           },
         };
@@ -185,6 +281,11 @@ function createFlexibleProxy() {
           target: `https://${dynamoTarget}`,
           changeOrigin: true,
           pathRewrite: (path) => path,
+          on: {
+            proxyReq: (proxyReq, req, res) => {
+              setForwardedHeaders(proxyReq, req);
+            },
+          },
         })(req, res, next);
       }
 
