@@ -213,6 +213,8 @@ function createFlexibleProxy() {
           target: config.target,
           changeOrigin: true,
           pathRewrite: { [`^/${firstSegment}`]: "" },
+          cookieDomainRewrite: host,
+          cookiePathRewrite: "/",
           on: {
             proxyReq: (proxyReq, req, res) => {
               try {
@@ -281,6 +283,8 @@ function createFlexibleProxy() {
           target: `https://${dynamoTarget}`,
           changeOrigin: true,
           pathRewrite: (path) => path,
+          cookieDomainRewrite: host,
+          cookiePathRewrite: "/",
           on: {
             proxyReq: (proxyReq, req, res) => {
               setForwardedHeaders(proxyReq, req);
