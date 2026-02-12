@@ -12,5 +12,5 @@
   "1011" : { "target": "https://app.mirabelsmarketingmanager.com"},
   "api": { "target": "https://emailservice.magazinemanager.com/api" },
   "external": { "target": "https://emailservice.magazinemanager.com" },
-  "view-in-browser" : { "target": "https://emailservice.magazinemanager.com" }
+  "view-in-browser" : { "target": "https://emailservice.magazinemanager.com/view-in-browser" }
 }
