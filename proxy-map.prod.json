@@ -11,5 +11,5 @@
   "1010" : { "target": "https://d3o95m4hf22wfr.cloudfront.net/devicesiglib.min.js" },
   "1011" : { "target": "https://app.mirabelsmarketingmanager.com"},
   "api": { "target": "https://emailservice.magazinemanager.com/api" },
-  "esapi": { "target": "https://emailservice.magazinemanager.com" }
+  "external": { "target": "https://emailservice.magazinemanager.com" }
 }
