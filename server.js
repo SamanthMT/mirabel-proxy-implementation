@@ -189,8 +189,6 @@ function createFlexibleProxy() {
           target: config.target,
           changeOrigin: true,
           pathRewrite: { [`^/${firstSegment}`]: "" },
-          cookieDomainRewrite: host,
-          cookiePathRewrite: "/",
           on: {
             proxyReq: (proxyReq, req, res) => {
               try {
@@ -198,22 +196,7 @@ function createFlexibleProxy() {
                 forwardRequestBody(proxyReq, req);
               } catch (err) {
                 console.error("Error forwarding body:", err);
-              }
-            },
-            proxyRes: (proxyRes, req, res) => {
-              const status = proxyRes.statusCode;
-              if (status !== 301 && status !== 302 && status !== 307 && status !== 308) return;
-              const location = proxyRes.headers["location"];
-              if (!location) return;
-              try {
-                const targetOrigin = new URL(config.target).origin;
-                const locUrl = location.startsWith("/") ? new URL(location, config.target) : new URL(location);
-                if (locUrl.origin !== targetOrigin) return;
-                const pathAndSearch = (locUrl.pathname.replace(/^\//, "") || "") + (locUrl.search || "");
-                const protocol = req.get("x-forwarded-proto") || req.protocol;
-                const proxyBase = `${protocol}://${req.get("host")}`;
-                proxyRes.headers["location"] = pathAndSearch ? `${proxyBase}/${firstSegment}/${pathAndSearch}` : `${proxyBase}/${firstSegment}`;
-              } catch (_) {}
+            }
             },
           },
         };
@@ -259,8 +242,6 @@ function createFlexibleProxy() {
           target: `https://${dynamoTarget}`,
           changeOrigin: true,
           pathRewrite: (path) => path,
-          cookieDomainRewrite: host,
-          cookiePathRewrite: "/",
           on: {
             proxyReq: (proxyReq, req, res) => {
               setForwardedHeaders(proxyReq, req);
