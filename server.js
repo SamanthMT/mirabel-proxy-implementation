@@ -154,45 +154,33 @@ function setForwardedHeaders(proxyReq, req) {
 app.use((req, res, next) => {
   const [_, rawSegment = ""] = req.url.split("/");
   const firstSegment = rawSegment.split("?")[0];
+  const config = proxyMap[firstSegment];
 
-  // already has a valid segment
-  if (proxyMap[firstSegment]?.target) {
-    req._proxySegment = firstSegment;
-    return next();
-  }
+  if (config?.target) return next();
 
   const referer = req.headers.referer;
   if (!referer) return next();
 
   try {
     const refUrl = new URL(referer);
-
-    const refParts = refUrl.pathname.split("/").filter(Boolean);
-    const refSegment = refParts[0];
-
+    const [, refSegment] = refUrl.pathname.split("/");
     if (!refSegment || !proxyMap[refSegment]?.target) return next();
     if (refUrl.hostname !== req.hostname) return next();
 
     const pathPart = req.path || "/";
-    const queryPart = req.url.includes("?")
-      ? "?" + req.url.split("?").slice(1).join("?")
-      : "";
-
-    req._proxySegment = refSegment;
-
-    req.url = `/${refSegment}${pathPart}${queryPart}`;
+    const queryPart = req.url.includes("?") ? "?" + req.url.split("?").slice(1).join("?") : "";
+    req.url = `/${refSegment}${pathPart.startsWith("/") ? pathPart : "/" + pathPart}${queryPart}`;
   } catch (_) {}
 
   next();
 });
-
 
 function createFlexibleProxy() {
   return async (req, res, next) => {
     try {
       
       const [_, rawSegment = ""] = req.url.split("/");
-      const firstSegment = req._proxySegment || rawSegment.split("?")[0];
+      const firstSegment = rawSegment.split("?")[0];
       const config = proxyMap[firstSegment];
       const host = req.hostname;
 
