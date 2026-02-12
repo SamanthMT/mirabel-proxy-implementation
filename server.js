@@ -151,30 +151,6 @@ function setForwardedHeaders(proxyReq, req) {
   );
 }
 
-const ROOT_ASSET_REGEX =
-  /^\/(manifest\.json|sw\.js|service-worker\.js|favicon\.ico|asset-manifest\.json)$/i;
-
-app.use((req, res, next) => {
-  if (!ROOT_ASSET_REGEX.test(req.path)) {
-    return next();
-  }
-
-  const referer = req.headers.referer;
-  if (!referer) return next();
-
-  try {
-    const refUrl = new URL(referer);
-    const [, firstSegment] = refUrl.pathname.split("/");
-
-    if (firstSegment && proxyMap[firstSegment]?.target) {
-      req.url = `/${firstSegment}${req.path}`;
-    }
-  } catch (_) {}
-
-  next();
-});
-
-// Send all requests (from a proxied page) through the same proxy segment so every network call hits the proxy
 app.use((req, res, next) => {
   const [_, rawSegment = ""] = req.url.split("/");
   const firstSegment = rawSegment.split("?")[0];
