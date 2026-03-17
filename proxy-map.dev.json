@@ -10,6 +10,7 @@
   "9999" : { "target": "https://t1mrktapp2.magazinemanager.com/fp/clientjs/clntv5.js" },
   "1010" : { "target": "https://d3o95m4hf22wfr.cloudfront.net/devicesiglib.min.js" },
   "1011" : { "target": "https://app-dev.mirabelsmarketingmanager.com"},
+  "1012" : { "target": "https://mmclientfilespublic-dev.s3.amazonaws.com" },
   "api": { "target": "https://t1emailservice2.magazinemanager.com/api" },
   "external": { "target": "https://t1emailservice2.magazinemanager.com" },
   "view-in-browser" : { "target": "https://t1emailservice2.magazinemanager.com/view-in-browser" }
