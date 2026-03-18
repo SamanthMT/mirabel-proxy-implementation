@@ -188,6 +188,7 @@ function createFlexibleProxy() {
         const proxyOptions = {
           target: config.target,
           changeOrigin: true,
+          followRedirects: true,
           pathRewrite: { [`^/${firstSegment}`]: "" },
           on: {
             proxyReq: (proxyReq, req, res) => {
@@ -197,6 +198,27 @@ function createFlexibleProxy() {
               } catch (err) {
                 console.error("Error forwarding body:", err);
             }
+            },
+            proxyRes: (proxyRes, req, res) => {
+              const location = proxyRes.headers["location"];
+        
+              if (location) {
+                try {
+                  // handle absolute + relative URLs
+                  const redirectUrl = new URL(location, config.target);
+        
+                  const [_, rawSegment = ""] = req.url.split("/");
+                  const firstSegment = rawSegment.split("?")[0];
+        
+                  const newLocation =
+                    `${req.protocol}://${req.hostname}/${firstSegment}` +
+                    `${redirectUrl.pathname}${redirectUrl.search}`;
+        
+                  proxyRes.headers["location"] = newLocation;
+                } catch (err) {
+                  console.error("❌ Redirect rewrite error:", err);
+                }
+              }
             },
           },
         };
@@ -241,10 +263,28 @@ function createFlexibleProxy() {
         return createProxyMiddleware({
           target: `https://${dynamoTarget}`,
           changeOrigin: true,
+          followRedirects: true,
           pathRewrite: (path) => path,
           on: {
             proxyReq: (proxyReq, req, res) => {
               setForwardedHeaders(proxyReq, req);
+            },
+            proxyRes: (proxyRes, req, res) => {
+              const location = proxyRes.headers["location"];
+        
+              if (location) {
+                try {
+                  const redirectUrl = new URL(location, `https://${dynamoTarget}`);
+        
+                  const newLocation =
+                    `${req.protocol}://${req.hostname}` +
+                    `${redirectUrl.pathname}${redirectUrl.search}`;
+        
+                  proxyRes.headers["location"] = newLocation;
+                } catch (err) {
+                  console.error("❌ Redirect rewrite error:", err);
+                }
+              }
             },
           },
         })(req, res, next);
